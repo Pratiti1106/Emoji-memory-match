@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Emoji Memory Match</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@400;500&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f14;
+      --surface: #1a1a24;
+      --surface2: #22222f;
+      --border: rgba(255,255,255,0.08);
+      --accent: #7c6af7;
+      --accent2: #f7956a;
+      --green: #4ade80;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --text: #f0eeff;
+      --muted: #888;
+      --radius: 14px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 1.25rem;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem;
+      text-align: center;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .stat-val {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .diff-bar-wrap {
+      margin-bottom: 1rem;
+    }
+
+    .diff-bar-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .diff-track {
+      height: 5px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .diff-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--green);
+      border-radius: 4px;
+      transition: width 0.5s ease, background 0.5s ease;
+    }
+
+    #msg {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      min-height: 20px;
+      margin-bottom: 0.75rem;
+    }
+
+    #win-banner {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      text-align: center;
+      margin-bottom: 1.25rem;
+    }
+
+    #win-banner .trophy { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+    #win-banner .win-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    #win-banner .win-sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 1rem;
+    }
+
+    .card {
+      aspect-ratio: 1;
+      cursor: pointer;
+      perspective: 600px;
+    }
+
+    .card-inner {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.38s cubic-bezier(.4,0,.2,1);
+      border-radius: var(--radius);
+    }
+
+    .card.flipped .card-inner { transform: rotateY(180deg); }
+
+    .card-front, .card-back {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius);
+      backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+    }
+
+    .card-back {
+      background: var(--surface);
+      font-size: 1.4rem;
+    }
+
+    .card-front {
+      background: var(--surface2);
+      font-size: 1.8rem;
+      transform: rotateY(180deg);
+    }
+
+    .card.matched .card-front {
+      background: rgba(74, 222, 128, 0.1);
+      border-color: rgba(74, 222, 128, 0.4);
+    }
+
+    .card:hover:not(.matched):not(.flipped) .card-back {
+      background: var(--surface2);
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    .controls button {
+      flex: 1;
+      padding: 0.65rem 1rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+
+    .controls button:hover { background: var(--surface2); border-color: rgba(255,255,255,0.18); }
+    .controls button:active { transform: scale(0.97); }
+    .controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #btn-new { border-color: rgba(124,106,247,0.4); color: #b0a4ff; }
+    #btn-new:hover { background: rgba(124,106,247,0.1); }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Emoji Memory Match</h1>
+    <p>Flip cards to find matching pairs — it gets harder as you go!</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Matches</div><div class="stat-val" id="s-matches">0/8</div></div>
+    <div class="stat"><div class="stat-label">Flips</div><div class="stat-val" id="s-flips">0</div></div>
+    <div class="stat"><div class="stat-label">Timer</div><div class="stat-val" id="s-speed">1.2s</div></div>
+  </div>
+
+  <div class="diff-bar-wrap">
+    <div class="diff-bar-label">
+      <span>Difficulty</span>
+      <span id="diff-text">Easy</span>
+    </div>
+    <div class="diff-track"><div class="diff-fill" id="diff-fill"></div></div>
+  </div>
+
+  <div id="msg">Find all 8 matching pairs to win!</div>
+
+  <div id="win-banner">
+    <span class="trophy">🏆</span>
+    <div class="win-title">You Won!</div>
+    <div class="win-sub" id="win-sub"></div>
+  </div>
+
+  <div id="board"></div>
+
+  <div class="controls">
+    <button id="btn-new">New Game</button>
+    <button id="btn-hint">Hint (peek once)</button>
+  </div>
+</div>
+
+<script>
+  const EMOJIS = ['🍕','🚀','🎸','🦊','🌈','🎯','🍩','🦋'];
+  let board = [], flipped = [], matched = 0, flips = 0, lock = false, hintUsed = false;
+
+  function shuffle(arr) {
+    let a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      let j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function getDelay() {
+    return Math.max(400, 1200 - matched * 100);
+  }
+
+  function getDiffLabel(pct) {
+    if (pct < 30) return 'Easy';
+    if (pct < 60) return 'Medium';
+    if (pct < 85) return 'Hard';
+    return 'Intense!';
+  }
+
+  function getDiffColor(pct) {
+    if (pct < 40) return '#4ade80';
+    if (pct < 75) return '#fbbf24';
+    return '#f87171';
+  }
+
+  function updateStats() {
+    $('#s-matches').text(matched + '/8');
+    $('#s-flips').text(flips);
+    $('#s-speed').text((getDelay() / 1000).toFixed(1) + 's');
+    let pct = Math.min(100, (matched / 8) * 100);
+    $('#diff-fill').css({ width: pct + '%', background: getDiffColor(pct) });
+    $('#diff-text').text(getDiffLabel(pct));
+  }
+
+  function buildBoard() {
+    matched = 0; flips = 0; flipped = []; lock = false; hintUsed = false;
+    board = shuffle([...EMOJIS, ...EMOJIS]);
+    $('#board').empty();
+    $('#win-banner').hide();
+    $('#msg').text('Find all 8 matching pairs to win!');
+    $('#btn-hint').prop('disabled', false).text('Hint (peek once)');
+
+    board.forEach((emoji, i) => {
+      let $card = $(`
+        <div class="card" data-i="${i}">
+          <div class="card-inner">
+            <div class="card-back">❓</div>
+            <div class="card-front">${emoji}</div>
+          </div>
+        </div>`);
+      $card.on('click', () => onCardClick($card, i));
+      $('#board').append($card);
+    });
+    updateStats();
+  }
+
+  function onCardClick($card, i) {
+    if (lock || $card.hasClass('flipped') || $card.hasClass('matched')) return;
+    $card.addClass('flipped');
+    flipped.push({ $card, i });
+    flips++;
+    updateStats();
+
+    if (flipped.length === 2) {
+      lock = true;
+      let [a, b] = flipped;
+      if (board[a.i] === board[b.i]) {
+        a.$card.addClass('matched');
+        b.$card.addClass('matched');
+        matched++;
+        updateStats();
+        flipped = []; lock = false;
+        if (matched === 8) showWin();
+        else $('#msg').text('Match! Keep going...');
+      } else {
+        $('#msg').text('No match — flipping back...');
+        setTimeout(() => {
+          a.$card.removeClass('flipped');
+          b.$card.removeClass('flipped');
+          flipped = []; lock = false;
+          $('#msg').text('');
+        }, getDelay());
+      }
+    }
+  }
+
+  function showWin() {
+    $('#msg').text('');
+    $('#win-banner').show();
+    let efficiency = Math.round((16 / flips) * 100);
+    $('#win-sub').text('Completed in ' + flips + ' flips — ' + efficiency + '% efficiency. ' +
+      (hintUsed ? 'Used 1 hint.' : 'No hints used!'));
+  }
+
+  $('#btn-new').on('click', buildBoard);
+
+  $('#btn-hint').on('click', function () {
+    if (lock || hintUsed) return;
+    hintUsed = true;
+    lock = true;
+    $('#msg').text('Peeking for 1 second...');
+    $('.card:not(.matched)').addClass('flipped');
+    setTimeout(() => {
+      $('.card:not(.matched)').removeClass('flipped');
+      lock = false;
+      $('#msg').text('Hint used! (one time only)');
+    }, 1000);
+    $(this).prop('disabled', true).text('Hint used');
+  });
+
+  buildBoard();
+</script>
+</body>
+</html>
